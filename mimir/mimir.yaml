@@ -1,0 +1,51 @@
+# Do not use this configuration in production.
+# It is for demonstration purposes only.
+multitenancy_enabled: false
+
+common:
+  storage:
+    backend: s3
+    s3:
+      endpoint: s3.nobell.fr
+      region: us-east-2
+      bucket_name: mimir
+      insecure: false
+
+blocks_storage:
+  backend: s3
+  s3:
+    bucket_name: mimir
+  tsdb:
+    dir: /data/ingester
+  bucket_store:
+    sync_dir: /data/tsdb-sync
+  storage_prefix: blocks
+
+ingester:
+  ring:
+    replication_factor: 1
+
+compactor:
+  data_dir: /data/compactor
+
+ruler_storage:
+  backend: s3
+  s3:
+    bucket_name: mimir
+  storage_prefix: ruler
+
+alertmanager_storage:
+  backend: s3
+  s3:
+    bucket_name: mimir
+  storage_prefix: alertmanager
+
+server:
+  http_listen_port: 9009
+  log_level: info
+
+limits:
+  ingestion_rate: 100000
+  ingestion_burst_size: 200000
+  max_global_series_per_user: 1000000
+  compactor_blocks_retention_period: 180d
