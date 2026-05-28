@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitea
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: gitea-secrets
+  namespace: gitea
+spec:
+  refreshInterval: 1h
+
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+
+  target:
+    name: gitea-secret
+    creationPolicy: Owner
+
+  data:
+    - secretKey: db-password
+      remoteRef:
+        key: postgresql/users
+        property: gitea_user
+
+    - secretKey: secret-key
+      remoteRef:
+        key: gitea
+        property: secret-key
+
+    - secretKey: internal-token
+      remoteRef:
+        key: gitea
+        property: internal-token
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-data
+  namespace: gitea
+spec:
+  accessModes:
+    - ReadWriteMany
+
+  resources:
+    requests:
+      storage: 30Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: gitea
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: gitea
+
+  template:
+    metadata:
+      labels:
+        app: gitea
+
+    spec:
+      containers:
+        - name: gitea
+
+          image: gitea/gitea:1.23
+
+          ports:
+            - containerPort: 3000
+            - containerPort: 22
+
+          env:
+            - name: GITEA__database__DB_TYPE
+              value: postgres
+
+            - name: GITEA__database__HOST
+              value: 10.34.0.10:5432
+
+            - name: GITEA__database__NAME
+              value: jan_gitea
+
+            - name: GITEA__database__USER
+              value: jan_gitea_user
+
+            - name: GITEA__database__PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-secret
+                  key: db-password
+
+            - name: GITEA__security__SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-secret
+                  key: secret-key
+
+            - name: GITEA__security__INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-secret
+                  key: internal-token
+
+            - name: GITEA__server__ROOT_URL
+              value: https://gitea.nobell.fr/
+
+          volumeMounts:
+            - name: gitea-data
+              mountPath: /data
+
+      volumes:
+        - name: gitea-data
+          persistentVolumeClaim:
+            claimName: gitea-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea
+  namespace: gitea
+spec:
+  type: LoadBalancer
+
+  selector:
+    app: gitea
+
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+
+    - name: ssh
+      port: 22
+      targetPort: 22
