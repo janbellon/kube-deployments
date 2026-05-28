@@ -1,0 +1,71 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+  log_level: error
+  grpc_server_max_concurrent_streams: 1000
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
+limits_config:
+  max_label_names_per_series: 30
+  max_label_name_length: 256
+  max_label_value_length: 1024
+  retention_period: 672h
+  metric_aggregation_enabled: true
+  enable_multi_variant_queries: true
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  aws:
+    bucketnames: loki
+    endpoint: https://s3.nobell.fr
+    region: us-east-2
+    access_key_id: ${S3_ACCESS_KEY}
+    secret_access_key: ${S3_SECRET_KEY}
+    s3forcepathstyle: true
+    insecure: false
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  delete_request_store: s3
+
+ruler:
+  storage:
+    type: s3
+    s3:
+      bucketnames: loki
+      endpoint: https://s3.nobell.fr
+      region: us-east-2
+      access_key_id: ${S3_ACCESS_KEY}
+      secret_access_key: ${S3_SECRET_KEY}
+      s3forcepathstyle: true
+      insecure: false
+
+#analytics:
+#  reporting_enabled: false

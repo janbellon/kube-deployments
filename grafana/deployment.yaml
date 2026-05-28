@@ -25,7 +25,7 @@ spec:
           - 0
       containers:
         - name: grafana
-          image: grafana/grafana:latest
+          image: grafana/grafana:main
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -60,7 +60,7 @@ spec:
             - secretRef:
                 name: grafana-secrets
         - name: redis
-          image: redis:7-alpine
+          image: redis:alpine3.23
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 6379
@@ -80,6 +80,39 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 10
+        - name: grafana-renderer
+          image: grafana/grafana-image-renderer:v5.8.8
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: HTTP_HOST
+              value: "0.0.0.0"
+            - name: HTTP_PORT
+              value: "8081"
+            - name: ENABLE_METRICS
+              value: "true"
+            - name: AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: GF_RENDERING_RENDERER_TOKEN
+            - name: TRACING_INSECURE
+              value: "true"
+            - name: LOG_LEVEL
+              value: "error"
+            - name: BROWSER_FLAG
+              value: "--ignore-certificate-errors"
+          livenessProbe:
+            tcpSocket:
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 8081
             initialDelaySeconds: 5
             periodSeconds: 10
 
@@ -130,6 +163,10 @@ spec:
       remoteRef:
         key: "authentik"
         property: "ldap_bind_password"
+    - secretKey: GF_RENDERING_RENDERER_TOKEN
+      remoteRef:
+        key: "grafana"
+        property: renderer_token
 ---
 apiVersion: v1
 kind: Service
@@ -146,3 +183,6 @@ spec:
     - name: http
       port: 3000
       targetPort: 3000
+    - name: http-render
+      port: 8081
+      targetPort: 8081
