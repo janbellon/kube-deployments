@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pdns-admin
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: pdns-admin-secrets
+  namespace: pdns-admin
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: pdns-admin-secrets
+    creationPolicy: Owner
+  data:
+    - secretKey: SECRET_KEY
+      remoteRef:
+        key: kv/pdns-admin
+        property: secret_key
+    - secretKey: DB_PASSWORD
+      remoteRef:
+        key: kv/postgresql/users
+        property: powerdns_user
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdns-admin
+  namespace: pdns-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pdns-admin
+  template:
+    metadata:
+      labels:
+        app: pdns-admin
+    spec:
+      containers:
+        - name: pdns-admin
+          image: powerdnsadmin/pda-legacy:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pdns-admin-secrets
+                  key: SECRET_KEY
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pdns-admin-secrets
+                  key: DB_PASSWORD
+            - name: FLASK_CONF
+              value: /app/config.py
+          volumeMounts:
+            - name: pdns-admin-config
+              mountPath: /app/config.py
+              subPath: config.py
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: pdns-admin-config
+          configMap:
+            name: pdns-admin-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pdns-admin
+  namespace: pdns-admin
+spec:
+  type: LoadBalancer
+  selector:
+    app: pdns-admin
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
