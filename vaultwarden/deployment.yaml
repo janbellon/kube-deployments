@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vaultwarden
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaultwarden
+  namespace: vaultwarden
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vaultwarden
+  template:
+    metadata:
+      labels:
+        app: vaultwarden
+    spec:
+      containers:
+        - name: vaultwarden
+          image: vaultwarden/server:latest
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: vaultwarden-env
+            - secretRef:
+                name: vaultwarden-secrets
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)"
+            - name: SMTP_FROM
+              value: "$(SMTP_USERNAME)"
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: vaultwarden-secrets
+  namespace: vaultwarden
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: vaultwarden-secrets
+    creationPolicy: Owner
+  data:
+    - secretKey: SECRET_KEY
+      remoteRef:
+        key: "postgresql/users"
+        property: "vaultwarden_user"
+    - secretKey: PUSH_INSTALLATION_ID
+      remoteRef:
+        key: "vaultwarden"
+        property: "push_notification_installation_id"
+    - secretKey: PUSH_INSTALLATION_KEY
+      remoteRef:
+        key: "vaultwarden"
+        property: "push_notification_installation_key"
+    - secretKey: ADMIN_TOKEN
+      remoteRef:
+        key: "vaultwarden"
+        property: "admin_token"
+    - secretKey: DATABASE_PASSWORD
+      remoteRef:
+        key: "postgresql/users"
+        property: "vaultwarden_user"
+    - secretKey: SMTP_USERNAME
+      remoteRef:
+        key: "smtp"
+        property: "username"
+    - secretKey: SMTP_PASSWORD
+      remoteRef:
+        key: "smtp"
+        property: "password"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vaultwarden
+  namespace: vaultwarden
+spec:
+  type: LoadBalancer
+
+  selector:
+    app: vaultwarden
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vaultwarden-env
+  namespace: vaultwarden
+data:
+  DOMAIN: https://warden.vil.nbl.sh
+  DATA_FOLDER: "data/"
+  RSA_KEY_FILENAME: "data/rsa_key"
+  ICON_CACHE_FOLDER: "data/icon_cache"
+  SENDS_FOLDER: "data/sends"
+  TMP_FOLDER: "data/tmp"
+  TEMPLATES_FOLDER: "data/templates"
+  RELOAD_TEMPLATES: "false"
+  DATABASE_USER: "jan_vaultwarden_user"
+  DATABASE_NAME: "jan_vaultwarden"
+  DATABASE_HOST: "10.34.0.10"
+  DATABASE_PORT: "5432"
+  DB_CONNECTION_RETRIES: "15"
+  DATABASE_TIMEOUT: "30"
+  DATABASE_DILE_TIMEOUT: "600"
+  DATABASE_MIN_CONNS: "2"
+  DATABASE_MAX_CONNS: "8"
+  ENABLE_WEBSOCKET: "true"
+  PUSH_ENABLED: "true"
+  PUSH_RELAY_URI: "https://api.bitwarden.eu"
+  PUSH_IDENTITY_URI: "https://identity.bitwarden.eu"
+  SENDS_ALLOWED: "false"
+  SIGNUPS_ALLOWED: "true"
+  SIGNUPS_VERIFY: "true"
+  SIGNUPS_DOMAINS_WHITELIST: "enpos.fr,nobell.fr,charbotel.com,gmail.com"
+  ORG_CREATION_USERS: "jan@nobell.fr"
+  INVITATIONS_ALLOWED: "true"
+  INVITATION_ORG_NAME: Vaultwarden Nobell
+  EMERGENCY_ACCESS-ALLOWED: "true"
+  EMAIL_CHANGE_ALLOWED: "true"
+  PASSWORD_ITERATIONS: "400000"
+  PASSWORD_HINTS_ALLOWED: "false"
+  SHOW_PASSWORD_HINTS: "false"
+  LOG_TIMESTAMP_FORMAT: "%d/%m/%Y %H:%M:%S.%3f"
+  LOG_FILE: "/var/log/vaultwarden.log"
+  LOG_LEVEL: "info"
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_FROM_NAME: "Vaultwarden Enpos"
+  SMTP_TIMEOUT: "15"
+  SMTP_SECURITY: "starttls"
+  SMTP_PORT: "587"

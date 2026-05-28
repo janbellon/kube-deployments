@@ -1,0 +1,225 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: outline
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: outline-env
+  namespace: outline
+data:
+  NODE_ENV: "production"
+  URL: "https://wiki.vil.nbl.sh/"
+  COLLABORATION_URL: "https://wiki.vil.nbl.sh/"
+  WEB_CONCURRENCY: "1"
+  DEFAULT_LANGUAGE: "en_US"
+  DB_HOST: "10.34.0.10"
+  DB_PORT: "5432"
+  DB_USER: "jan_outline_user"
+  DB_NAME: "jan_outline"
+  PGSSLMODE: "disable"
+  REDIS_URL: "redis://redis:6379"
+  FILE_STORAGE: "s3"
+  AWS_REGION: "us-east-1"
+  AWS_S3_UPLOAD_BUCKET_URL: "https://s3.nobell.fr"
+  AWS_S3_UPLOAD_BUCKET_NAME: "outline"
+  AWS_FORCE_PATH_STYLE: "false"
+  AWS_S3_ACL: "private"
+  FILE_STORAGE_UPLOAD_MAX_SIZE: "22621440"
+  FORCE_HTTPS: "false"
+  OIDC_ISSUER_URL: "https://auth.nobell.fr/"
+  OIDC_USERNAME_CLAIM: "preferred_username"
+  OIDC_DISPLAY_NAME: "Authentik"
+  OIDC_SCOPES: "openid profile email"
+  SMTP_SERVICE: "Gmail"
+  SMTP_USERNAME: "notifications.enpos@gmail.com"
+  RATE_LIMITER_ENABLED: "true"
+  RATE_LIMITER_REQUESTS: "1000"
+  RATE_LIMITER_DURATION_WINDOW: "60"
+  ENABLE_UPDATES: "true"
+  DEBUG: "http"
+  LOG_LEVEL: "info"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outline
+  namespace: outline
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: outline
+  template:
+    metadata:
+      labels:
+        app: outline
+    spec:
+      containers:
+        - name: outline
+          image: outlinewiki/outline:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: outline-env
+            - secretRef:
+                name: outline-secrets
+          env:
+            - name: DATABASE_URL
+              value: "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)"
+            - name: OIDC_AUTH_URI
+              value: "$(OIDC_ISSUER_URL)application/o/authorize/"
+            - name: OIDC_TOKEN_URI
+              value: "$(OIDC_ISSUER_URL)application/o/token/"
+            - name: OIDC_USERINFO_URI
+              value: "$(OIDC_ISSUER_URL)application/o/userinfo/"
+            - name: SMTP_FROM_EMAIL
+              value: "$(SMTP_USERNAME)"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: outline
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:latest
+          command: ["redis-server", "/redis/redis.conf"]
+          ports:
+            - containerPort: 6379
+          envFrom:
+            - configMapRef:
+                name: outline-env  # si tu veux injecter ton outline.env comme ConfigMap
+          volumeMounts:
+            - name: redis-config-volume
+              mountPath: /redis
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: redis-config-volume
+          configMap:
+            name: redis-config
+            items:
+              - key: redis.conf
+                path: redis.conf
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: outline
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    protected-mode no
+    port 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: outline
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: outline-secrets
+  namespace: outline
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: outline-secrets
+    creationPolicy: Owner
+  data:
+    - secretKey: SECRET_KEY
+      remoteRef:
+        key: "outline"
+        property: "outline_secret_key"
+    - secretKey: UTILS_SECRET
+      remoteRef:
+        key: "outline"
+        property: "outline_utils_secret"
+    - secretKey: DB_PASSWORD
+      remoteRef:
+        key: postgresql/users
+        property: "outline_user"
+    - secretKey: AWS_ACCESS_KEY_ID
+      remoteRef:
+        key: s3/outline
+        property: access_key
+    - secretKey: AWS_SECRET_ACCESS_KEY
+      remoteRef:
+        key: s3/outline
+        property: secret_key
+    - secretKey: DISCORD_CLIENT_ID
+      remoteRef:
+        key: outline
+        property: discord_client_id
+    - secretKey: DISCORD_CLIENT_SECRET
+      remoteRef:
+        key: outline
+        property: discord_client_secret
+    - secretKey: DISCORD_SERVER_ID
+      remoteRef:
+        key: outline
+        property: discord_server_id
+    - secretKey: OIDC_CLIENT_SECRET
+      remoteRef:
+        key: outline
+        property: oidc_client_secret
+    - secretKey: OIDC_CLIENT_ID
+      remoteRef:
+        key: outline
+        property: oidc_client_id
+    - secretKey: SMTP_PASSWORD
+      remoteRef:
+        key: outline
+        property: smtp_password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: outline
+  namespace: outline
+spec:
+  type: LoadBalancer
+  selector:
+    app: outline
+  ports:
+    - name: http
+      port: 3000          # port interne du service (et du pod)
+      targetPort: 3000    # port sur lequel le pod écoute
