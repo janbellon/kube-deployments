@@ -19,11 +19,11 @@ spec:
   data:
     - secretKey: SECRET_KEY
       remoteRef:
-        key: kv/pdns-admin
-        property: secret_key
+        key: powerdns
+        property: pdns_admin_secret_key
     - secretKey: DB_PASSWORD
       remoteRef:
-        key: kv/postgresql/users
+        key: postgresql/users
         property: powerdns_user
 ---
 apiVersion: apps/v1
