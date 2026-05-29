@@ -174,7 +174,7 @@ metadata:
   name: grafana
   namespace: grafana
 spec:
-  type: LoadBalancer
+  type: ClusterIP
 
   selector:
     app: grafana
@@ -186,3 +186,41 @@ spec:
     - name: http-render
       port: 8081
       targetPort: 8081
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana-tls
+  namespace: grafana
+spec:
+  secretName: grafana-tls
+  dnsNames:
+    - grafana.vil.nbl.sh
+  issuerRef:
+    name: acme-nbl
+    kind: ClusterIssuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: grafana
+  annotations:
+    cert-manager.io/cluster-issuer: acme-nbl
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - grafana.vil.nbl.sh
+      secretName: grafana-tls
+  rules:
+    - host: grafana.vil.nbl.sh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000

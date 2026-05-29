@@ -88,7 +88,7 @@ metadata:
   name: pdns-admin
   namespace: pdns-admin
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: pdns-admin
   ports:
@@ -96,3 +96,41 @@ spec:
       port: 80
       targetPort: 80
       protocol: TCP
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pdns-adm-tls
+  namespace: pdns-admin
+spec:
+  secretName: pdns-admin-tls
+  dnsNames:
+    - pdns-adm.int.enpos.fr
+  issuerRef:
+    name: acme-nbl
+    kind: ClusterIssuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pdns-admin
+  namespace: pdns-admin
+  annotations:
+    cert-manager.io/cluster-issuer: acme-nbl
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - pdns-adm.int.enpos.fr
+      secretName: pdns-admin-tls
+  rules:
+    - host: pdns-adm.int.enpos.fr
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pdns-admin
+                port:
+                  number: 80

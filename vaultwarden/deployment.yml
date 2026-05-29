@@ -92,7 +92,7 @@ metadata:
   name: vaultwarden
   namespace: vaultwarden
 spec:
-  type: LoadBalancer
+  type: ClusterIP
 
   selector:
     app: vaultwarden
@@ -149,3 +149,41 @@ data:
   SMTP_TIMEOUT: "15"
   SMTP_SECURITY: "starttls"
   SMTP_PORT: "587"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vaultwarden-tls
+  namespace: vaultwarden
+spec:
+  secretName: vaultwarden-tls
+  dnsNames:
+    - warden.vil.nbl.sh
+  issuerRef:
+    name: acme-nbl
+    kind: ClusterIssuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vaultwarden
+  namespace: vaultwarden
+  annotations:
+    cert-manager.io/cluster-issuer: acme-nbl
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - warden.vil.nbl.sh
+      secretName: vaultwarden-tls
+  rules:
+    - host: warden.vil.nbl.sh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vaultwarden
+                port:
+                  number: 80
