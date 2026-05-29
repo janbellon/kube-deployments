@@ -76,7 +76,7 @@ spec:
         fsGroupChangePolicy: "OnRootMismatch"
       containers:
         - name: nextcloud
-          image: nextcloud:latest
+          image: nextcloud:33.0.3
           ports:
             - containerPort: 80
           envFrom:
@@ -102,6 +102,7 @@ metadata:
   namespace: nextcloud
 spec:
   type: LoadBalancer
+  loadBalancerIP: 10.2.51.115
   selector:
     app: nextcloud
   ports:

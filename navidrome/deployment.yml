@@ -103,6 +103,7 @@ metadata:
   namespace: navidrome
 spec:
   type: LoadBalancer
+  loadBalancerIP: 10.2.51.112
   selector:
     app: navidrome
   ports:

@@ -125,7 +125,7 @@ metadata:
   namespace: gitea
 spec:
   type: LoadBalancer
-
+  loadBalancerIP: 10.2.51.101
   selector:
     app: gitea
 

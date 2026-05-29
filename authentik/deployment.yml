@@ -252,6 +252,7 @@ metadata:
   namespace: authentik
 spec:
   type: LoadBalancer
+  loadBalancerIP: 10.2.51.110
   selector:
     app: authentik-server
   ports:

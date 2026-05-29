@@ -13,7 +13,7 @@ metadata:
 spec:
   containers:
     - name: prometheus
-      image: prom/prometheus:latest
+      image: prom/prometheus:v3.12.0
       args:
         - "--config.file=/etc/prometheus/prometheus.yml"
       ports:
@@ -34,7 +34,7 @@ metadata:
   name: prometheus
   namespace: prometheus
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: prometheus
   ports:
@@ -42,3 +42,41 @@ spec:
       port: 9090
       targetPort: 9090
       protocol: TCP
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus-tls
+  namespace: prometheus
+spec:
+  secretName: prometheus-tls
+  dnsNames:
+    - prometheus.vil.nbl.sh
+  issuerRef:
+    name: acme-nbl
+    kind: ClusterIssuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus
+  namespace: prometheus
+  annotations:
+    cert-manager.io/cluster-issuer: acme-nbl
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - prometheus.vil.nbl.sh
+      secretName: prometheus-tls
+  rules:
+    - host: prometheus.vil.nbl.sh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus
+                port:
+                  number: 9090

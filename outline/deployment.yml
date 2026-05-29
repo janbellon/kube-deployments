@@ -58,7 +58,7 @@ spec:
     spec:
       containers:
         - name: outline
-          image: outlinewiki/outline:latest
+          image: outlinewiki/outline:1.8.0-1
           ports:
             - containerPort: 3000
           envFrom:

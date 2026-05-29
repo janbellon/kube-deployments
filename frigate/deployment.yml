@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
         - name: frigate
-          image: ghcr.io/blakeblackshear/frigate:stable
+          image: ghcr.io/blakeblackshear/frigate:0.17.1
           ports:
             - name: web
               containerPort: 5000
@@ -84,6 +84,7 @@ metadata:
   namespace: frigate
 spec:
   type: LoadBalancer
+  loadBalancerIP: 10.2.51.116
   selector:
     app: frigate
   ports:

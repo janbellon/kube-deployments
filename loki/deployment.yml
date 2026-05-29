@@ -13,7 +13,7 @@ metadata:
 spec:
   containers:
     - name: loki
-      image: grafana/loki:latest
+      image: grafana/loki:3.7.2
       env:
         - name: S3_ACCESS_KEY
           valueFrom:
@@ -46,7 +46,7 @@ metadata:
   name: loki
   namespace: loki
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: loki
   ports:
@@ -77,3 +77,41 @@ spec:
       remoteRef:
         key: s3/loki
         property: secret_key
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: loki-tls
+  namespace: loki
+spec:
+  secretName: loki-tls
+  dnsNames:
+    - loki.vil.nbl.sh
+  issuerRef:
+    name: acme-nbl
+    kind: ClusterIssuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loki
+  namespace: loki
+  annotations:
+    cert-manager.io/cluster-issuer: acme-nbl
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - loki.vil.nbl.sh
+      secretName: loki-tls
+  rules:
+    - host: loki.vil.nbl.sh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: loki
+                port:
+                  number: 3100
