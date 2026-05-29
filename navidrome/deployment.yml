@@ -32,6 +32,101 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: metadata-remote
+  namespace: navidrome
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metadata-remote
+  template:
+    metadata:
+      labels:
+        app: metadata-remote
+    spec:
+      containers:
+        - name: metadata-remote
+          image: ghcr.io/wow-signal-dev/metadata-remote:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8338
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+          volumeMounts:
+            - name: navidrome-music
+              mountPath: /music
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+      volumes:
+        - name: navidrome-music
+          persistentVolumeClaim:
+            claimName: navidrome-music
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metadata-remote
+  namespace: navidrome
+spec:
+  type: ClusterIP
+  selector:
+    app: metadata-remote
+  ports:
+    - name: http
+      port: 8338
+      targetPort: 8338
+      protocol: TCP
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: metadata-remote-tls
+  namespace: navidrome
+spec:
+  secretName: metadata-remote-tls
+  dnsNames:
+    - music-editor.vil.nbl.sh
+  issuerRef:
+    name: acme-nbl
+    kind: ClusterIssuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: metadata-remote
+  namespace: navidrome
+  annotations:
+    cert-manager.io/cluster-issuer: acme-nbl
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - music-editor.vil.nbl.sh
+      secretName: metadata-remote-tls
+  rules:
+    - host: music-editor.vil.nbl.sh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: metadata-remote
+                port:
+                  number: 8338
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: navidrome
   namespace: navidrome
 spec:
@@ -46,7 +141,7 @@ spec:
     spec:
       containers:
         - name: navidrome
-          image: deluan/navidrome:latest
+          image: deluan/navidrome:0.61.2
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -61,7 +156,7 @@ spec:
             - name: ND_BASEURL
               value: ""
             - name: ND_MUSICFOLDER
-              value: "/music"
+              value: "/music/files"
             - name: ND_DATAFOLDER
               value: "/data"
           volumeMounts:
@@ -111,3 +206,110 @@ spec:
       port: 4533
       targetPort: 4533
       protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metube
+  namespace: navidrome
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metube
+  template:
+    metadata:
+      labels:
+        app: metube
+    spec:
+      containers:
+        - name: metube
+          image: ghcr.io/alexta69/metube:2026.05.29
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: DOWNLOAD_DIR
+              value: "/downloads"
+            - name: AUDIO_DOWNLOAD_DIR
+              value: "/downloads/files"
+            - name: STATE_DIR
+              value: "/downloads/.metube"
+            - name: DEFAULT_THEME
+              value: "auto"
+            - name: CUSTOM_DIRS
+              value: "true"
+            - name: CREATE_CUSTOM_DIRS
+              value: "true"
+            - name: DELETE_FILE_ON_TRASHCAN
+              value: "false"
+            - name: YTDL_OPTIONS
+              value: '{"format":"bestaudio/best","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"mp3","preferredquality":"192"}],"outtmpl":"%(title)s.%(ext)s"}'
+          volumeMounts:
+            - name: navidrome-music
+              mountPath: /downloads
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: navidrome-music
+          persistentVolumeClaim:
+            claimName: navidrome-music
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metube
+  namespace: navidrome
+spec:
+  type: ClusterIP
+  selector:
+    app: metube
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: metube-tls
+  namespace: navidrome
+spec:
+  secretName: metube-tls
+  dnsNames:
+    - metube.vil.nbl.sh
+  issuerRef:
+    name: acme-nbl
+    kind: ClusterIssuer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: metube
+  namespace: navidrome
+  annotations:
+    cert-manager.io/cluster-issuer: acme-nbl
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - metube.vil.nbl.sh
+      secretName: metube-tls
+  rules:
+    - host: metube.vil.nbl.sh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: metube
+                port:
+                  number: 8081
