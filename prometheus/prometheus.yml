@@ -82,7 +82,7 @@ scrape_configs:
     metrics_path: /metrics
     scheme: http
     static_configs:
-      - targets: ['185.157.245.181:9069']
+      - targets: ['147.135.211.34:9069']
 
   - job_name: 'node_exporter'
     scrape_interval: 15s
