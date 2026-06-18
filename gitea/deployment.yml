@@ -113,7 +113,7 @@ spec:
                   key: internal-token
 
             - name: GITEA__server__ROOT_URL
-              value: https://gitea.nobell.fr/
+              value: https://gitea.vil.nbl.sh/
 
           volumeMounts:
             - name: gitea-data
