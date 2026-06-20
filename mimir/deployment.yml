@@ -1,130 +1,47 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: mimir
 ---
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata:
-  name: mimir-s3-secret
-  namespace: mimir
-spec:
-  refreshInterval: 1h
-  secretStoreRef:
-    name: vault-backend
-    kind: ClusterSecretStore
-  target:
-    name: mimir-s3-secret
-    creationPolicy: Owner
-  data:
-    - secretKey: AWS_SECRET_ACCESS_KEY
-      remoteRef:
-        key: s3/mimir
-        property: secret_key
-    - secretKey: AWS_ACCESS_KEY_ID
-      remoteRef:
-        key: s3/mimir
-        property: access_key
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mimir-data
-  namespace: mimir
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
----
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: mimir
   namespace: mimir
   labels:
     app: mimir
 spec:
-  containers:
-    - name: mimir
-      image: grafana/mimir:2.13.1
-      args:
-        - "-config.file=/etc/mimir.yaml"
-        - "-target=all"
-        - "-config.expand-env=true"
-      ports:
-        - containerPort: 9009
-          name: http
-      env:
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: mimir-s3-secret
-              key: AWS_SECRET_ACCESS_KEY
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: mimir-s3-secret
-              key: AWS_ACCESS_KEY_ID
-      volumeMounts:
-        - name: mimir-config
-          mountPath: /etc/mimir.yaml
-          subPath: mimir.yaml
-  volumes:
-    - name: mimir-config
-      configMap:
-        name: mimir-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mimir
-  namespace: mimir
-spec:
-  type: ClusterIP
+  replicas: 1
   selector:
-    app: mimir
-  ports:
-    - name: http
-      port: 9009
-      targetPort: 9009
-      protocol: TCP
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: mimir-tls
-  namespace: mimir
-spec:
-  secretName: mimir-tls
-  dnsNames:
-    - mimir.vil.nbl.sh
-  issuerRef:
-    name: acme-nbl
-    kind: ClusterIssuer
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: mimir
-  namespace: mimir
-  annotations:
-    cert-manager.io/cluster-issuer: acme-nbl
-spec:
-  ingressClassName: traefik
-  tls:
-    - hosts:
-        - mimir.vil.nbl.sh
-      secretName: mimir-tls
-  rules:
-    - host: mimir.vil.nbl.sh
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: mimir
-                port:
-                  number: 9009
+    matchLabels:
+      app: mimir
+  template:
+    metadata:
+      labels:
+        app: mimir
+    spec:
+      containers:
+        - name: mimir
+          image: grafana/mimir:2.13.1
+          args:
+            - "-config.file=/etc/mimir.yaml"
+            - "-target=all"
+            - "-config.expand-env=true"
+          ports:
+            - containerPort: 9009
+              name: http
+          env:
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mimir-s3-secret
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mimir-s3-secret
+                  key: AWS_ACCESS_KEY_ID
+          volumeMounts:
+            - name: mimir-config
+              mountPath: /etc/mimir.yaml
+              subPath: mimir.yaml
+      volumes:
+        - name: mimir-config
+          configMap:
+            name: mimir-config
