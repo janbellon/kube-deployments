@@ -1,7 +1,0 @@
-storage:
-  encryption_key: '{{ env "AUTHELIA_STORAGE_ENCRYPTION_KEY" }}'
-  postgres:
-    address: tcp://10.34.0.10:5432
-    database: jan_authelia
-    username: jan_authelia_user
-    password: '{{ env "AUTHELIA_STORAGE_POSTGRES_PASSWORD" }}'

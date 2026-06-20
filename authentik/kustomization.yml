@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: authentik
+
+resources:
+  - server.yml
+  - worker.yml
+  - secrets.yml
+  - volumes.yml
+  - ingress.yml
+
+configMagGenerator:
+  - name: authentik-custom-templates
+    files: ./custom-templates
+
+  - name: authentik-certs
+    files: ./certs
+  
+  - name: authentik-ca-certificates
+    files: ./ca-certificates

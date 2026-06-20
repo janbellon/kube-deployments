@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-env
+  namespace: authentik
+data:
+  AUTHENTIK_ERROR_REPORTING__ENABLED: "true"
+
+  AUTHENTIK_POSTGRESQL__HOST: "10.34.0.10"
+  AUTHENTIK_POSTGRESQL__PORT: "5432"
+  AUTHENTIK_POSTGRESQL__USER: "jan_authentik_user"
+  AUTHENTIK_POSTGRESQL__NAME: "jan_authentik"
+  AUTHENTIK_POSTGRESQL__SSLMODE: "prefer"
+
+  AUTHENTIK_STORAGE__MEDIA__BACKEND: "s3"
+  AUTHENTIK_STORAGE__MEDIA__S3__BUCKET_NAME: "authentik"
+  AUTHENTIK_STORAGE__MEDIA__S3__ENDPOINT: "https://s3.nobell.fr"
+  AUTHENTIK_STORAGE__MEDIA__S3__CUSTOM_DOMAIN: "authentik.s3.nobell.fr"
+
+  AUTHENTIK_BOOTSTRAP_EMAIL: "admin@enpos.fr"

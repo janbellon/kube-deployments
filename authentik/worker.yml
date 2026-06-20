@@ -1,0 +1,78 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authentik-worker
+  namespace: authentik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authentik-worker
+  template:
+    metadata:
+      labels:
+        app: authentik-worker
+    spec:
+      containers:
+        - name: authentik-worker
+          image: ghcr.io/goauthentik/server:2025.10.2
+          imagePullPolicy: IfNotPresent
+          command: ["ak"]
+          args: ["worker"]
+
+          securityContext:
+            runAsUser: 0
+
+          envFrom:
+            - configMapRef:
+                name: authentik-env
+            - secretRef:
+                name: authentik-secrets
+
+          volumeMounts:
+            - name: custom-templates
+              mountPath: /templates
+
+            - name: certs
+              mountPath: /certs
+
+            - name: ca-certificates
+              mountPath: /usr/local/share/ca-certificates
+
+          readinessProbe:
+            exec:
+              command:
+                - ak
+                - healthcheck
+            initialDelaySeconds: 20
+            periodSeconds: 30
+
+          livenessProbe:
+            exec:
+              command:
+                - ak
+                - healthcheck
+            initialDelaySeconds: 60
+            periodSeconds: 60
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+      volumes:
+        - name: custom-templates
+          persistentVolumeClaim:
+            claimName: authentik-custom-templates
+
+        - name: certs
+          persistentVolumeClaim:
+            claimName: authentik-certs
+
+        - name: ca-certificates
+          persistentVolumeClaim:
+            claimName: authentik-ca-certificates
