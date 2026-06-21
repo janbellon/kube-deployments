@@ -8,8 +8,8 @@ resources:
   - volumes.yml
   - ingress.yml
 
-configMagGenerator:
+configMapGenerator:
   - name: mimir-config
     files: 
-      - config.yaml=mimir.yaml
+      - mimir.yaml=config.yaml
 
