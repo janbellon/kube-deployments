@@ -8,8 +8,9 @@ common:
     s3:
       endpoint: s3.nobell.fr
       region: us-east-2
-      bucket_name: mimir
-      insecure: false
+      secret_access_key: "${AWS_SECRET_ACCESS_KEY}"
+      access_key_id: "${AWS_ACCESS_KEY_ID}"
+      bucket_lookup_type: path
 
 blocks_storage:
   backend: s3
@@ -31,13 +32,13 @@ compactor:
 ruler_storage:
   backend: s3
   s3:
-    bucket_name: mimir
+    bucket_name: mimir-ruler
   storage_prefix: ruler
 
 alertmanager_storage:
   backend: s3
   s3:
-    bucket_name: mimir
+    bucket_name: mimir-alertmanager
   storage_prefix: alertmanager
 
 server:
