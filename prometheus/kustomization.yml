@@ -8,7 +8,7 @@ resources:
   - volumes.yml
   - ingress.yml
 
-configMagGenerator:
+configMapGenerator:
   - name: prometheus-config
     files:
       - config.yaml=prometheus.yml

@@ -8,7 +8,7 @@ resources:
   - deployment.yml
   - ingress.yml
 
-configMagGenerator:
+configMapGenerator:
   - name: glance-config
     files: ./config
 
