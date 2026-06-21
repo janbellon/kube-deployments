@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: termix-data
+  namespace: termix
+spec:
+  accessModes:
+    - ReadWriteMany
+
+  storageClassName: nfs-csi
+
+  resources:
+    requests:
+      storage: 10Gi
