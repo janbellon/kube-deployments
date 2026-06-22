@@ -1,3 +1,0 @@
-#!/bin/bash
-
-kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/headlamp/main/kubernetes-headlamp.yaml
